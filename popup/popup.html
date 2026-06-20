@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Roblox Theme Studio</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header">
+    <div class="header-logo">🎨</div>
+    <div class="header-title">
+      <span class="title-main">Theme Studio</span>
+      <span class="title-sub">for Roblox</span>
+    </div>
+    <label class="toggle-master" title="Enable/disable theme">
+      <input type="checkbox" id="themeEnabled" />
+      <span class="toggle-track"></span>
+    </label>
+  </header>
+
+  <!-- ===== TAB NAVIGATION ===== -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="colors">Colors</button>
+    <button class="tab" data-tab="background">Background</button>
+    <button class="tab" data-tab="sidebar">Sidebar</button>
+  </nav>
+
+  <!-- ===== COLORS TAB ===== -->
+  <section class="tab-content active" id="tab-colors">
+
+    <div class="section-label">Page background</div>
+    <div class="color-row">
+      <input type="color" id="colorBg" class="color-picker" value="#1a1a2e" />
+      <span class="color-hex" id="hexBg">#1a1a2e</span>
+      <button class="btn-reset" data-target="colorBg">↺</button>
+    </div>
+
+    <div class="section-label">Buttons</div>
+    <div class="color-row">
+      <input type="color" id="colorBtn" class="color-picker" value="#00b06f" />
+      <span class="color-hex" id="hexBtn">#00b06f</span>
+      <button class="btn-reset" data-target="colorBtn">↺</button>
+    </div>
+
+    <div class="section-label">Text color</div>
+    <div class="color-row">
+      <input type="color" id="colorText" class="color-picker" value="#ffffff" />
+      <span class="color-hex" id="hexText">#ffffff</span>
+      <button class="btn-reset" data-target="colorText">↺</button>
+    </div>
+
+    <div class="section-label">Links</div>
+    <div class="color-row">
+      <input type="color" id="colorLink" class="color-picker" value="#7ec8e3" />
+      <span class="color-hex" id="hexLink">#7ec8e3</span>
+      <button class="btn-reset" data-target="colorLink">↺</button>
+    </div>
+
+    <!-- Quick presets -->
+    <div class="section-label" style="margin-top: 12px;">Quick presets</div>
+    <div class="presets-row">
+      <button class="preset" data-preset="dark"    title="Dark">🌑</button>
+      <button class="preset" data-preset="ocean"   title="Ocean">🌊</button>
+      <button class="preset" data-preset="sakura"  title="Sakura">🌸</button>
+      <button class="preset" data-preset="forest"  title="Forest">🌲</button>
+      <button class="preset" data-preset="sunset"  title="Sunset">🌅</button>
+    </div>
+
+  </section>
+
+  <!-- ===== BACKGROUND TAB ===== -->
+  <section class="tab-content" id="tab-background">
+
+    <!-- Background type selector -->
+    <div class="section-label">Background type</div>
+    <div class="bg-type-row">
+      <label class="radio-card">
+        <input type="radio" name="bgType" value="color" checked />
+        <span>Color</span>
+      </label>
+      <label class="radio-card">
+        <input type="radio" name="bgType" value="image" />
+        <span>Image</span>
+      </label>
+      <label class="radio-card">
+        <input type="radio" name="bgType" value="gif" />
+        <span>GIF/Video</span>
+      </label>
+      <label class="radio-card">
+        <input type="radio" name="bgType" value="url" />
+        <span>URL</span>
+      </label>
+    </div>
+
+    <!-- File upload (image/gif) — opens picker page to avoid Chrome popup-close bug -->
+    <div id="bgFileZone" class="upload-zone hidden">
+      <div class="upload-preview" id="uploadPreview">
+        <span class="upload-preview-icon">🖼️</span>
+        <span class="upload-preview-text" id="bgFileName">No image selected</span>
+      </div>
+      <button class="btn-open-picker" id="btnOpenPicker">
+        📂 Choose file (image / GIF / video)
+      </button>
+      <div class="upload-hint">Opens in a new tab — supports JPG, PNG, GIF, WebP, MP4, WebM</div>
+    </div>
+
+    <!-- URL input -->
+    <div id="bgUrlZone" class="url-zone hidden">
+      <input type="text" id="bgUrl" class="text-input" placeholder="https://example.com/image.jpg" />
+    </div>
+
+    <!-- Video options (shown when video is selected) -->
+    <div id="bgVideoOptions" class="video-options hidden">
+      <label class="checkbox-row">
+        <input type="checkbox" id="bgVideoMuted" checked />
+        <span>Muted</span>
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="bgVideoLoop" checked />
+        <span>Loop</span>
+      </label>
+    </div>
+
+    <!-- Fill mode -->
+    <div class="section-label" id="bgFitLabel">Fill mode</div>
+    <div id="bgFitZone">
+      <select id="bgFit" class="select-input">
+        <option value="cover">Fill (cover)</option>
+        <option value="contain">Fit (contain)</option>
+        <option value="fill">Stretch</option>
+        <option value="repeat">Tile (mosaic)</option>
+        <option value="center">Center (no scale)</option>
+      </select>
+    </div>
+
+    <!-- Background opacity -->
+    <div class="section-label">Background opacity</div>
+    <div class="slider-row">
+      <input type="range" id="bgOpacity" min="0" max="100" value="100" class="slider" />
+      <span class="slider-value" id="bgOpacityVal">100%</span>
+    </div>
+
+  </section>
+
+  <!-- ===== SIDEBAR TAB ===== -->
+  <section class="tab-content" id="tab-sidebar">
+
+    <p class="hint">
+      The left navigation panel on Roblox can be made transparent so your background shows through. Buttons and icons remain visible.
+    </p>
+
+    <!-- Sidebar transparency toggle -->
+    <label class="checkbox-row big">
+      <input type="checkbox" id="sidebarTransparent" />
+      <span>Transparent sidebar</span>
+    </label>
+
+    <!-- Sidebar opacity slider -->
+    <div id="sidebarOpacityBlock">
+      <div class="section-label">Sidebar opacity</div>
+      <div class="slider-row">
+        <input type="range" id="sidebarOpacity" min="0" max="100" value="0" class="slider" />
+        <span class="slider-value" id="sidebarOpacityVal">0%</span>
+      </div>
+    </div>
+
+    <!-- Sidebar border toggle -->
+    <label class="checkbox-row big" style="margin-top: 14px;">
+      <input type="checkbox" id="sidebarBorder" checked />
+      <span>Show sidebar border</span>
+    </label>
+
+    <!-- Border color -->
+    <div id="sidebarBorderBlock">
+      <div class="section-label">Border color</div>
+      <div class="color-row">
+        <input type="color" id="colorSidebarBorder" class="color-picker" value="#ffffff" />
+        <span class="color-hex" id="hexSidebarBorder">#ffffff</span>
+      </div>
+
+      <div class="section-label">Border opacity</div>
+      <div class="slider-row">
+        <input type="range" id="sidebarBorderOpacity" min="0" max="100" value="30" class="slider" />
+        <span class="slider-value" id="sidebarBorderOpacityVal">30%</span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <button id="btnApply" class="btn-apply">Apply theme</button>
+    <button id="btnReset" class="btn-secondary">Reset all</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

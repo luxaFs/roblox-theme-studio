@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Choose Background — Roblox Theme Studio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: #0e0e1a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #e0e0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: 480px;
+      background: #16162a;
+      border: 1px solid #2a2a40;
+      border-radius: 16px;
+      padding: 32px;
+    }
+    .logo { font-size: 32px; text-align: center; margin-bottom: 6px; }
+    h1 { text-align: center; font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .subtitle { text-align: center; font-size: 12px; color: #5a5a80; margin-bottom: 28px; }
+
+    .drop-zone {
+      border: 2px dashed #3a3a5e;
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #7c3aed;
+      background: rgba(124, 58, 237, 0.06);
+    }
+    #fileInput {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .drop-icon { font-size: 42px; margin-bottom: 10px; }
+    .drop-title { font-size: 15px; font-weight: 600; color: #c0c0e0; margin-bottom: 4px; }
+    .drop-hint { font-size: 12px; color: #4a4a70; }
+
+    #preview {
+      display: none;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      background: #0e0e1a;
+    }
+    #previewImg { width: 100%; max-height: 220px; object-fit: contain; display: block; }
+    #previewVideo { width: 100%; max-height: 220px; display: block; }
+    .preview-label {
+      position: absolute; top: 8px; left: 8px;
+      background: rgba(0,0,0,0.65);
+      color: #a78bfa; font-size: 11px; font-weight: 700;
+      padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px;
+    }
+    .file-info { font-size: 12px; color: #6060a0; text-align: center; padding: 8px 0 0; }
+
+    .section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: #5050a0; margin-bottom: 8px;
+    }
+    .fit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 20px; }
+    .fit-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 8px 4px;
+      background: #1e1e30; border: 1px solid #3a3a55; border-radius: 8px;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      font-size: 10px; color: #7070a0; text-align: center;
+    }
+    .fit-btn .fit-icon { font-size: 18px; }
+    .fit-btn:hover, .fit-btn.active {
+      border-color: #7c3aed; color: #a78bfa;
+      background: rgba(124, 58, 237, 0.1);
+    }
+
+    .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+    .slider {
+      flex: 1; -webkit-appearance: none; height: 4px;
+      background: #2a2a40; border-radius: 2px; outline: none; cursor: pointer;
+    }
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      background: #a78bfa; border-radius: 50%;
+    }
+    .slider-val { font-size: 12px; color: #8080b0; width: 36px; text-align: right; }
+
+    .actions { display: flex; gap: 10px; }
+    .btn-apply {
+      flex: 1; padding: 12px 0;
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      border: none; border-radius: 10px; color: #fff;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-apply:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-apply:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-clear {
+      padding: 12px 16px; background: none;
+      border: 1px solid #3a3a55; border-radius: 10px;
+      color: #6060a0; font-size: 13px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-clear:hover { border-color: #7c3aed; color: #a78bfa; }
+
+    #status { text-align: center; font-size: 13px; margin-top: 14px; min-height: 20px; color: #5a5a80; }
+    #status.success { color: #34d399; }
+    #status.error   { color: #f87171; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🖼️</div>
+  <h1>Choose Background</h1>
+  <p class="subtitle">Roblox Theme Studio</p>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept="image/*,video/mp4,video/webm" />
+    <div class="drop-icon">📂</div>
+    <div class="drop-title">Drop your file here or click to browse</div>
+    <div class="drop-hint">Supports: JPG, PNG, GIF, WebP, MP4, WebM</div>
+  </div>
+
+  <div id="preview">
+    <span class="preview-label" id="previewLabel">IMAGE</span>
+    <img  id="previewImg"   src="" alt="preview" style="display:none" />
+    <video id="previewVideo" muted loop autoplay playsinline style="display:none"></video>
+    <div class="file-info" id="fileInfo"></div>
+  </div>
+
+  <div class="section-label">Fill mode</div>
+  <div class="fit-grid" id="fitGrid">
+    <button class="fit-btn active" data-fit="cover">  <span class="fit-icon">⬛</span>Fill</button>
+    <button class="fit-btn"        data-fit="contain"><span class="fit-icon">🔲</span>Fit</button>
+    <button class="fit-btn"        data-fit="fill">   <span class="fit-icon">⬜</span>Stretch</button>
+    <button class="fit-btn"        data-fit="repeat"> <span class="fit-icon">▦</span>Tile</button>
+    <button class="fit-btn"        data-fit="center"> <span class="fit-icon">🎯</span>Center</button>
+  </div>
+
+  <div class="section-label">Opacity</div>
+  <div class="slider-row">
+    <input type="range" class="slider" id="opacitySlider" min="0" max="100" value="100" />
+    <span class="slider-val" id="opacityVal">100%</span>
+  </div>
+
+  <div class="actions">
+    <button class="btn-apply" id="btnApply" disabled>Apply to Roblox</button>
+    <button class="btn-clear"  id="btnClear">Clear</button>
+  </div>
+  <div id="status">Select a file to get started</div>
+</div>
+<script src="picker.js"></script>
+</body>
+</html>
