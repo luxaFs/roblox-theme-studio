@@ -20,11 +20,11 @@ A free, open-source Chrome extension that lets you fully customize the look of R
 
 ## 🚀 Installation (Developer Mode)
 
-1. Download or clone this repository
+1. Download or clone this last release
 2. Open Chrome and go to `chrome://extensions/`
 3. Enable **Developer mode** (top right toggle)
 4. Click **Load unpacked**
-5. Select this folder (`roblox-theme-extension`)
+5. Select this folder (`roblox-theme-studio`)
 6. Open [roblox.com](https://www.roblox.com) and click the extension icon
 
 ---
