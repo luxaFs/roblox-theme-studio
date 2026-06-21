@@ -1,20 +1,11 @@
 // =============================================
 //  ROBLOX THEME STUDIO — Content Script
-//  FIXED VERSION — robust sidebar selection
+//  FIXED for nav selector with proper z-index
 // =============================================
 
 // ─── ROBLOX SELECTORS ─────────────────────────
-// Updated selectors — Roblox is constantly changing these
 const SELECTORS = {
-  // Try multiple selectors in order of reliability
-  sidebar: [
-    ".left-col",                     // Most common
-    ".rbx-navbar-left",              // Alternative
-    "nav[class*='left']",            // Flexible
-    "[class*='left-col']",           // Flexible
-    ".navigation-container",         // Fallback
-    "aside",                         // Generic
-  ].join(", "),
+  sidebar: "nav",  // ← ПРАВИЛЬНЫЙ СЕЛЕКТОР для левой панели Roblox
 };
 
 // State
@@ -22,7 +13,7 @@ let currentSettings = null;
 let bgLayerEl       = null;
 let styleEl         = null;
 let blobUrl         = null;
-let sidebarElements = [];           // Cache found elements
+let sidebarElements = [];
 
 // Init
 function init() {
@@ -65,7 +56,7 @@ function applyTheme(settings) {
   }
   applyColors(settings);
   applyBackground(settings);
-  applySidebar(settings);  // This must run AFTER bg is applied
+  applySidebar(settings);
 }
 
 // ─── COLORS ───────────────────────────────────
@@ -220,13 +211,11 @@ function applyGifFromArrayBuffer(buffer, mimeType, settings) {
 }
 
 // ─── SIDEBAR TRANSPARENCY ─────────────────────
-// THIS IS THE FIX FOR YOUR BUG
+// KEY FIX: Используем правильный селектор и устанавливаем z-index правильно
 function applySidebar(s) {
-  // First try to find sidebar elements
   findSidebarElements();
 
   if (sidebarElements.length === 0) {
-    // If not found yet, keep trying (Roblox is a SPA)
     console.warn("[RTS] Sidebar not found, retrying...");
     setTimeout(() => {
       findSidebarElements();
@@ -242,15 +231,11 @@ function applySidebar(s) {
 
 function findSidebarElements() {
   sidebarElements = [];
-  const sels = SELECTORS.sidebar.split(", ");
+  const navElements = document.querySelectorAll(SELECTORS.sidebar);
   
-  for (let sel of sels) {
-    const els = document.querySelectorAll(sel);
-    if (els.length > 0) {
-      sidebarElements = Array.from(els);
-      console.log(`[RTS] Found sidebar with selector: "${sel}" (${els.length} elements)`);
-      break;
-    }
+  if (navElements.length > 0) {
+    sidebarElements = Array.from(navElements);
+    console.log(`[RTS] Found ${navElements.length} sidebar element(s)`);
   }
 }
 
@@ -260,28 +245,29 @@ function applySidebarStyles(s) {
       const alpha       = (s.sidebarOpacity / 100).toFixed(2);
       const borderColor = hexToRgba(s.colorSidebarBorder, s.sidebarBorderOpacity / 100);
 
-      // Remove old background first
-      el.style.background = "none";
-      el.style.backgroundColor = "";
-      
-      // Apply new styles with high specificity
-      el.style.setProperty("background-color", `rgba(0,0,0,${alpha})`, "important");
-      el.style.setProperty("background", `rgba(0,0,0,${alpha})`, "important");
+      // ВАЖНО: используем rgba с полностью прозрачным фоном
+      // но задаём z-index чтобы он был выше, чем фоновый слой
+      el.style.setProperty("background-color", `rgba(0, 0, 0, ${alpha})`, "important");
+      el.style.setProperty("background", `rgba(0, 0, 0, ${alpha})`, "important");
+      el.style.setProperty("position", "relative", "important");
+      el.style.setProperty("z-index", "10", "important");  // ← Выше фонового слоя (z-index: 0)
       el.style.setProperty("backdrop-filter", "blur(0px)", "important");
 
       if (s.sidebarBorder) {
-        el.style.setProperty("border-right", `1px solid ${borderColor}`, "important");
+        el.style.setProperty("border-right", `2px solid ${borderColor}`, "important");
       } else {
         el.style.setProperty("border-right", "none", "important");
       }
       
-      console.log(`[RTS] Applied transparency to sidebar (alpha: ${alpha})`);
+      console.log(`[RTS] Applied sidebar styles (alpha: ${alpha}, border: ${s.sidebarBorder})`);
     } else {
       // Remove all our styles
       el.style.removeProperty("background-color");
       el.style.removeProperty("background");
       el.style.removeProperty("border-right");
       el.style.removeProperty("backdrop-filter");
+      el.style.removeProperty("z-index");
+      el.style.removeProperty("position");
       console.log("[RTS] Removed sidebar styles");
     }
   });
@@ -298,6 +284,8 @@ function removeTheme() {
     el.style.removeProperty("background");
     el.style.removeProperty("border-right");
     el.style.removeProperty("backdrop-filter");
+    el.style.removeProperty("z-index");
+    el.style.removeProperty("position");
   });
   sidebarElements = [];
 }
@@ -328,13 +316,11 @@ function hexToRgba(hex, alpha) {
   return `rgba(${parseInt(result[1],16)},${parseInt(result[2],16)},${parseInt(result[3],16)},${alpha})`;
 }
 
-// ─── OBSERVE SPA NAVIGATION ───────────────────
-// Re-check sidebar when Roblox changes the page
+// ─── SPA OBSERVER ─────────────────────────────
 function startObserver() {
   if (!document.body) return;
   const observer = new MutationObserver(() => {
     if (currentSettings?.sidebarTransparent) {
-      // Check if sidebar elements still exist, if not re-find them
       if (sidebarElements.some(el => !document.body.contains(el))) {
         findSidebarElements();
       }
