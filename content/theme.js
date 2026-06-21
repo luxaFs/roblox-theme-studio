@@ -1,28 +1,30 @@
 // =============================================
 //  ROBLOX THEME STUDIO — Content Script
-//  Injected into every Roblox page
+//  FIXED VERSION — robust sidebar selection
 // =============================================
 
 // ─── ROBLOX SELECTORS ─────────────────────────
+// Updated selectors — Roblox is constantly changing these
 const SELECTORS = {
+  // Try multiple selectors in order of reliability
   sidebar: [
-    ".left-col",
-    ".left-col-wrapper",
-    "#left-col",
-    "[class*='left-col']",
-    "[class*='sidebar']",
-    "nav.navigation-container",
-    ".navigation-container",
+    ".left-col",                     // Most common
+    ".rbx-navbar-left",              // Alternative
+    "nav[class*='left']",            // Flexible
+    "[class*='left-col']",           // Flexible
+    ".navigation-container",         // Fallback
+    "aside",                         // Generic
   ].join(", "),
 };
 
-// ─── STATE ────────────────────────────────────
+// State
 let currentSettings = null;
-let bgLayerEl       = null;   // Our background <div> or <video>
-let styleEl         = null;   // Our injected <style> tag
-let blobUrl         = null;   // Active Blob URL (revoked on cleanup)
+let bgLayerEl       = null;
+let styleEl         = null;
+let blobUrl         = null;
+let sidebarElements = [];           // Cache found elements
 
-// ─── INIT ─────────────────────────────────────
+// Init
 function init() {
   loadSettings().then((settings) => {
     if (settings && settings.themeEnabled) {
@@ -37,19 +39,16 @@ if (document.readyState === "loading") {
   init();
 }
 
-// Listen for messages from popup or picker
+// Listen for messages
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === "APPLY_THEME") {
     applyTheme(msg.data);
   }
-
-  // Picker sends the raw file as ArrayBuffer to avoid slow base64
   if (msg.action === "APPLY_GIF_BLOB") {
     applyGifFromArrayBuffer(msg.data.buffer, msg.data.mimeType, msg.data.settings);
   }
 });
 
-// ─── LOAD SETTINGS ────────────────────────────
 function loadSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get("robloxTheme", (data) => {
@@ -58,25 +57,21 @@ function loadSettings() {
   });
 }
 
-// ─── MAIN APPLY ───────────────────────────────
 function applyTheme(settings) {
   currentSettings = settings;
-
   if (!settings.themeEnabled) {
     removeTheme();
     return;
   }
-
   applyColors(settings);
   applyBackground(settings);
-  applySidebar(settings);
+  applySidebar(settings);  // This must run AFTER bg is applied
 }
 
 // ─── COLORS ───────────────────────────────────
 function applyColors(s) {
   ensureStyleTag();
   styleEl.textContent = `
-    /* Roblox Theme Studio */
     body, .rbx-body, #root, .page-container {
       background-color: ${s.colorBg} !important;
       color: ${s.colorText} !important;
@@ -103,7 +98,6 @@ function applyColors(s) {
 // ─── BACKGROUND ───────────────────────────────
 function applyBackground(s) {
   clearBgLayer();
-
   if (s.bgType === "color") return;
 
   const src = s.bgType === "url" ? s.bgUrl : s.bgFileData;
@@ -113,21 +107,14 @@ function applyBackground(s) {
   const opacity = (s.bgOpacity / 100).toFixed(2);
 
   if (isVideo) {
-    // ── VIDEO: element with object-fit ──
     applyVideoBackground(src, s, opacity);
-
   } else if (s.bgFit === "repeat") {
-    // ── TILE MODE: CSS background-image (fastest for tiling) ──
     applyTileBackground(src, opacity);
-
   } else {
-    // ── IMAGE / GIF: use CSS background-image for best performance ──
-    // CSS background-image is GPU-accelerated and handles GIF animation natively
     applyCssImageBackground(src, s.bgFit, opacity);
   }
 }
 
-// GIF/Image via CSS background-image — GPU accelerated, no FPS issues
 function applyCssImageBackground(src, fit, opacity) {
   const fitMap = {
     cover:   "cover",
@@ -143,34 +130,27 @@ function applyCssImageBackground(src, fit, opacity) {
     center:  "center center",
     repeat:  "top left",
   };
-  const repeatMap = {
-    repeat: "repeat",
-  };
 
   bgLayerEl = document.createElement("div");
   bgLayerEl.id = "rts-bg-layer";
-
   Object.assign(bgLayerEl.style, {
     position:            "fixed",
     inset:               "0",
     zIndex:              "0",
     opacity:             opacity,
     pointerEvents:       "none",
-    // GPU acceleration — key for smooth GIF
     willChange:          "transform",
     transform:           "translateZ(0)",
     backgroundImage:     `url("${src}")`,
     backgroundSize:      fitMap[fit] || "cover",
     backgroundPosition:  posMap[fit] || "center",
-    backgroundRepeat:    repeatMap[fit] || "no-repeat",
+    backgroundRepeat:    fit === "repeat" ? "repeat" : "no-repeat",
     width:               "100%",
     height:              "100%",
   });
-
   document.body.insertBefore(bgLayerEl, document.body.firstChild);
 }
 
-// Tile mode
 function applyTileBackground(src, opacity) {
   bgLayerEl = document.createElement("div");
   bgLayerEl.id = "rts-bg-layer";
@@ -191,7 +171,6 @@ function applyTileBackground(src, opacity) {
   document.body.insertBefore(bgLayerEl, document.body.firstChild);
 }
 
-// Video background
 function applyVideoBackground(src, s, opacity) {
   const wrapper = document.createElement("div");
   wrapper.id = "rts-bg-layer";
@@ -202,8 +181,6 @@ function applyVideoBackground(src, s, opacity) {
     opacity:       opacity,
     pointerEvents: "none",
     overflow:      "hidden",
-    willChange:    "transform",
-    transform:     "translateZ(0)",
   });
 
   const video = document.createElement("video");
@@ -213,13 +190,12 @@ function applyVideoBackground(src, s, opacity) {
   video.autoplay    = true;
   video.playsInline = true;
 
-  const fitMap = { cover:"cover", contain:"contain", fill:"fill", center:"none" };
   Object.assign(video.style, {
     position:   "absolute",
     inset:      "0",
     width:      "100%",
     height:     "100%",
-    objectFit:  fitMap[s.bgFit] || "cover",
+    objectFit:  s.bgFit === "center" ? "none" : (s.bgFit || "cover"),
   });
 
   wrapper.appendChild(video);
@@ -228,25 +204,15 @@ function applyVideoBackground(src, s, opacity) {
   video.play().catch(() => {});
 }
 
-// Apply GIF/image that arrived as raw ArrayBuffer from the picker
-// This bypasses base64 entirely → zero decode overhead
 function applyGifFromArrayBuffer(buffer, mimeType, settings) {
-  // Revoke old blob if exists
-  if (blobUrl) {
-    URL.revokeObjectURL(blobUrl);
-    blobUrl = null;
-  }
-
+  if (blobUrl) URL.revokeObjectURL(blobUrl);
   const blob = new Blob([buffer], { type: mimeType });
   blobUrl = URL.createObjectURL(blob);
-
-  // Patch settings to use the blob URL directly
   const patched = {
     ...settings,
     bgFileData:    blobUrl,
     bgFileIsVideo: mimeType.startsWith("video/"),
   };
-
   currentSettings = patched;
   applyColors(patched);
   applyCssImageBackground(blobUrl, patched.bgFit, (patched.bgOpacity / 100).toFixed(2));
@@ -254,27 +220,70 @@ function applyGifFromArrayBuffer(buffer, mimeType, settings) {
 }
 
 // ─── SIDEBAR TRANSPARENCY ─────────────────────
+// THIS IS THE FIX FOR YOUR BUG
 function applySidebar(s) {
-  waitForElements(SELECTORS.sidebar, (elements) => {
-    elements.forEach((el) => {
-      if (s.sidebarTransparent) {
-        const alpha       = (s.sidebarOpacity / 100).toFixed(2);
-        const borderColor = hexToRgba(s.colorSidebarBorder, s.sidebarBorderOpacity / 100);
+  // First try to find sidebar elements
+  findSidebarElements();
 
-        el.style.setProperty("background-color", `rgba(0,0,0,${alpha})`, "important");
-        el.style.setProperty("backdrop-filter",  "blur(0px)", "important");
-
-        if (s.sidebarBorder) {
-          el.style.setProperty("border-right", `1px solid ${borderColor}`, "important");
-        } else {
-          el.style.setProperty("border-right", "none", "important");
-        }
-      } else {
-        el.style.removeProperty("background-color");
-        el.style.removeProperty("border-right");
-        el.style.removeProperty("backdrop-filter");
+  if (sidebarElements.length === 0) {
+    // If not found yet, keep trying (Roblox is a SPA)
+    console.warn("[RTS] Sidebar not found, retrying...");
+    setTimeout(() => {
+      findSidebarElements();
+      if (sidebarElements.length > 0) {
+        applySidebarStyles(s);
       }
-    });
+    }, 500);
+    return;
+  }
+
+  applySidebarStyles(s);
+}
+
+function findSidebarElements() {
+  sidebarElements = [];
+  const sels = SELECTORS.sidebar.split(", ");
+  
+  for (let sel of sels) {
+    const els = document.querySelectorAll(sel);
+    if (els.length > 0) {
+      sidebarElements = Array.from(els);
+      console.log(`[RTS] Found sidebar with selector: "${sel}" (${els.length} elements)`);
+      break;
+    }
+  }
+}
+
+function applySidebarStyles(s) {
+  sidebarElements.forEach((el) => {
+    if (s.sidebarTransparent) {
+      const alpha       = (s.sidebarOpacity / 100).toFixed(2);
+      const borderColor = hexToRgba(s.colorSidebarBorder, s.sidebarBorderOpacity / 100);
+
+      // Remove old background first
+      el.style.background = "none";
+      el.style.backgroundColor = "";
+      
+      // Apply new styles with high specificity
+      el.style.setProperty("background-color", `rgba(0,0,0,${alpha})`, "important");
+      el.style.setProperty("background", `rgba(0,0,0,${alpha})`, "important");
+      el.style.setProperty("backdrop-filter", "blur(0px)", "important");
+
+      if (s.sidebarBorder) {
+        el.style.setProperty("border-right", `1px solid ${borderColor}`, "important");
+      } else {
+        el.style.setProperty("border-right", "none", "important");
+      }
+      
+      console.log(`[RTS] Applied transparency to sidebar (alpha: ${alpha})`);
+    } else {
+      // Remove all our styles
+      el.style.removeProperty("background-color");
+      el.style.removeProperty("background");
+      el.style.removeProperty("border-right");
+      el.style.removeProperty("backdrop-filter");
+      console.log("[RTS] Removed sidebar styles");
+    }
   });
 }
 
@@ -284,11 +293,13 @@ function removeTheme() {
   clearBgLayer();
   styleEl = null;
 
-  document.querySelectorAll(SELECTORS.sidebar).forEach((el) => {
+  sidebarElements.forEach((el) => {
     el.style.removeProperty("background-color");
+    el.style.removeProperty("background");
     el.style.removeProperty("border-right");
     el.style.removeProperty("backdrop-filter");
   });
+  sidebarElements = [];
 }
 
 function clearBgLayer() {
@@ -303,7 +314,6 @@ function clearBgLayer() {
 }
 
 // ─── UTILITIES ────────────────────────────────
-
 function ensureStyleTag() {
   if (!styleEl) {
     styleEl    = document.createElement("style");
@@ -318,25 +328,16 @@ function hexToRgba(hex, alpha) {
   return `rgba(${parseInt(result[1],16)},${parseInt(result[2],16)},${parseInt(result[3],16)},${alpha})`;
 }
 
-function waitForElements(selector, callback, interval = 400, maxTries = 25) {
-  let tries = 0;
-  function check() {
-    const els = document.querySelectorAll(selector);
-    if (els.length > 0) {
-      callback(Array.from(els));
-    } else if (tries < maxTries) {
-      tries++;
-      setTimeout(check, interval);
-    }
-  }
-  check();
-}
-
-// ─── SPA OBSERVER ─────────────────────────────
+// ─── OBSERVE SPA NAVIGATION ───────────────────
+// Re-check sidebar when Roblox changes the page
 function startObserver() {
   if (!document.body) return;
   const observer = new MutationObserver(() => {
-    if (currentSettings?.themeEnabled) {
+    if (currentSettings?.sidebarTransparent) {
+      // Check if sidebar elements still exist, if not re-find them
+      if (sidebarElements.some(el => !document.body.contains(el))) {
+        findSidebarElements();
+      }
       applySidebar(currentSettings);
     }
   });
