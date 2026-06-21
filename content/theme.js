@@ -1,22 +1,18 @@
 // =============================================
 //  ROBLOX THEME STUDIO — Content Script
-//  FIXED v2 — correct left-navigation-container
+//  FIXED v3 — True transparent sidebar
 // =============================================
 
-// ─── ROBLOX SELECTORS ─────────────────────────
 const SELECTORS = {
-  // Левая навигационная панель
-  sidebar: "#left-navigation-container",  // ← ПРАВИЛЬНЫЙ селектор!
+  sidebar: "#left-navigation-container",
 };
 
-// State
 let currentSettings = null;
 let bgLayerEl       = null;
 let styleEl         = null;
 let blobUrl         = null;
 let sidebarElements = [];
 
-// Init
 function init() {
   loadSettings().then((settings) => {
     if (settings && settings.themeEnabled) {
@@ -31,7 +27,6 @@ if (document.readyState === "loading") {
   init();
 }
 
-// Listen for messages
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === "APPLY_THEME") {
     applyTheme(msg.data);
@@ -212,7 +207,8 @@ function applyGifFromArrayBuffer(buffer, mimeType, settings) {
 }
 
 // ─── SIDEBAR TRANSPARENCY ─────────────────────
-// Находит левую панель и делает её прозрачной
+// КЛЮЧ: делаем фон полностью прозрачным
+// и добавляем полупрозрачную границу для видимости
 function applySidebar(s) {
   findSidebarElements();
 
@@ -233,55 +229,51 @@ function applySidebar(s) {
 function findSidebarElements() {
   sidebarElements = [];
   
-  // Пытаемся найти по ID (самый точный способ)
   let el = document.getElementById("left-navigation-container");
-  
   if (el) {
     sidebarElements = [el];
-    console.log("[RTS] Found sidebar by ID: #left-navigation-container");
+    console.log("[RTS] Found sidebar: #left-navigation-container");
     return;
   }
 
-  // Если не найдено по ID, ищем по селектору
   const navElements = document.querySelectorAll(SELECTORS.sidebar);
   if (navElements.length > 0) {
     sidebarElements = Array.from(navElements);
-    console.log(`[RTS] Found ${navElements.length} sidebar element(s) by selector`);
-  } else {
-    console.warn("[RTS] Sidebar element not found");
+    console.log(`[RTS] Found ${navElements.length} sidebar element(s)`);
   }
 }
 
 function applySidebarStyles(s) {
   sidebarElements.forEach((el) => {
     if (s.sidebarTransparent) {
-      const alpha       = (s.sidebarOpacity / 100).toFixed(2);
-      const borderColor = hexToRgba(s.colorSidebarBorder, s.sidebarBorderOpacity / 100);
-
-      // Очищаем старый фон
-      el.style.removeProperty("background-color");
-      el.style.removeProperty("background");
+      // ✨ КЛЮЧЕВОЙ МОМЕНТ ✨
+      // Делаем фон ПОЛНОСТЬЮ ПРОЗРАЧНЫМ, чтобы видно было что позади
+      el.style.setProperty("background-color", "rgba(0, 0, 0, 0)", "important");
+      el.style.setProperty("background", "rgba(0, 0, 0, 0)", "important");
       
-      // Применяем прозрачный фон
-      el.style.setProperty("background-color", `rgba(0, 0, 0, ${alpha})`, "important");
+      // Убедимся что не переполняет содержимое
+      el.style.setProperty("overflow-y", "auto", "important");
       el.style.setProperty("z-index", "10", "important");
-      el.style.setProperty("backdrop-filter", "blur(0px)", "important");
 
-      // Граница панели (опционально)
+      // ГРАНИЦА: полупрозрачная линия справа для видимости панели
       if (s.sidebarBorder) {
-        el.style.setProperty("border-right", `2px solid ${borderColor}`, "important");
+        const borderAlpha = (s.sidebarBorderOpacity / 100).toFixed(2);
+        const borderColor = hexToRgba(s.colorSidebarBorder, borderAlpha);
+        const borderWidth = s.sidebarBorderOpacity > 50 ? "2px" : "1px";
+        
+        el.style.setProperty("border-right", `${borderWidth} solid ${borderColor}`, "important");
+        console.log(`[RTS] ✅ Sidebar transparent + border (${borderWidth}, opacity: ${(borderAlpha*100).toFixed(0)}%)`);
       } else {
         el.style.removeProperty("border-right");
+        console.log("[RTS] ✅ Sidebar transparent (no border)");
       }
-      
-      console.log(`[RTS] ✅ Applied sidebar transparency (opacity: ${(alpha * 100).toFixed(0)}%)`);
     } else {
-      // Убираем все наши стили
+      // Убираем наши стили
       el.style.removeProperty("background-color");
       el.style.removeProperty("background");
       el.style.removeProperty("border-right");
-      el.style.removeProperty("backdrop-filter");
       el.style.removeProperty("z-index");
+      el.style.removeProperty("overflow-y");
       console.log("[RTS] ✅ Removed sidebar styles");
     }
   });
@@ -297,8 +289,8 @@ function removeTheme() {
     el.style.removeProperty("background-color");
     el.style.removeProperty("background");
     el.style.removeProperty("border-right");
-    el.style.removeProperty("backdrop-filter");
     el.style.removeProperty("z-index");
+    el.style.removeProperty("overflow-y");
   });
   sidebarElements = [];
 }
@@ -334,14 +326,10 @@ function startObserver() {
   if (!document.body) return;
   const observer = new MutationObserver(() => {
     if (currentSettings?.sidebarTransparent) {
-      // Проверяем, все ли элементы ещё в DOM
       const stillValid = sidebarElements.every(el => document.body.contains(el));
-      
       if (!stillValid) {
-        // Если какой-то элемент удалён, переищем
         findSidebarElements();
       }
-      
       applySidebar(currentSettings);
     }
   });
